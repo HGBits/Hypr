@@ -38,6 +38,16 @@ Hypr is _only_ a window manager. It is not a compositor and does not implement a
 - Moving / Fullscreening windows
 - Mostly EWMH and ICCCM compliant
 
+# XLibre compatibility and security
+
+This fork is maintained with an emphasis on compatibility with the XLibre/X11Libre X server and client-side security hardening.
+
+Hypr communicates with the X server through standard XCB/X11 interfaces. XLibre server-side vulnerabilities should be fixed in the server; Hypr changes focus on safe handling of X11 data, protocol errors, local IPC security and portable build hardening.
+
+See [`docs/X11Libre-SECURITY.md`](docs/X11Libre-SECURITY.md) for the compatibility model, security priorities, testing matrix and hardening roadmap.
+
+AI-assisted development is supported. Read [`AGENTS.md`](AGENTS.md) before modifying the repository. It defines the repository architecture assumptions, security rules, testing expectations and patch workflow for coding agents.
+
 # Installation
 I do not maintain any packages, but some kind people have made them for me. If I missed any, please let me know.
 
