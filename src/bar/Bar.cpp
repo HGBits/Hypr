@@ -122,7 +122,7 @@ int64_t barMainThread() {
             // Just for debugging
             SIPCMessageBarToMain message;
             message.windowID = 0;
-            IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.szPipeName, message);
+            IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.iPipeFD, message);
 
             Debug::log(LOG, "Bar parent died!");
 
