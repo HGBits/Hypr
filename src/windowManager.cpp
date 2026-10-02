@@ -2204,9 +2204,9 @@ void CWindowManager::doPostCreationChecks(CWindow* pWindow) {
 
     const auto window = pWindow->getDrawable();
 
-    PROP(wm_type_cookie, HYPRATOMS["_NET_WM_WINDOW_TYPE"], UINT32_MAX);
+    PROP(wm_type_cookie, HYPRATOMS["_NET_WM_WINDOW_TYPE"], 32);
 
-    if (wm_type_cookiereply == NULL || xcb_get_property_value_length(wm_type_cookiereply) < 1) {
+    if (wm_type_cookiereply == NULL || wm_type_cookiereply->type != XCB_ATOM_ATOM || wm_type_cookiereply->format != 32 || xcb_get_property_value_length(wm_type_cookiereply) < sizeof(xcb_atom_t)) {
         Debug::log(LOG, "No preferred type found. (doPostCreationChecks)");
     } else {
         const auto ATOMS = (xcb_atom_t*)xcb_get_property_value(wm_type_cookiereply);
