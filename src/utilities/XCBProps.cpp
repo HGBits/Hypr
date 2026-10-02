@@ -31,12 +31,12 @@ std::pair<std::string, std::string> getClassName(int64_t window) {
     if (CLASSNAMEINDEX < PROPLEN) {
         CLASSNAME = strndup(NEWCLASS + CLASSNAMEINDEX, PROPLEN - CLASSNAMEINDEX);
     } else {
-        CLASSNAME = "";
+        CLASSNAME = nullptr;
         freeClassName = false;
     }
 
     std::string CLASSINST(CLASSINSTANCE);
-    std::string CLASSNAM(CLASSNAME);
+    std::string CLASSNAM = CLASSNAME ? CLASSNAME : "";
 
     free(class_cookiereply);
     free(CLASSINSTANCE);
@@ -141,7 +141,7 @@ void removeAtom(const int& window, xcb_atom_t prop, xcb_atom_t atom) {
             values[valuesnum++] = atomsList[i];
     }
 
-    xcb_change_property(DisplayConnection, XCB_PROP_MODE_REPLACE, window, prop, XCB_ATOM_ATOM, 32, valuesnum, values);
+    xcb_change_property(DisplayConnection, XCB_PROP_MODE_REPLACE, window, prop, XCB_ATOM_ATOM, 32, valuesnum, values.data());
 
     free(REPLY);
     xcb_ungrab_server(DisplayConnection);
