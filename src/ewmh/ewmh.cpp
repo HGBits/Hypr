@@ -163,8 +163,15 @@ void EWMH::checkTransient(xcb_window_t window) {
     const auto TRANSIENTCOOKIE = xcb_get_property(g_pWindowManager->DisplayConnection, false, window, 68 /* TRANSIENT_FOR */, XCB_GET_PROPERTY_TYPE_ANY, 0, 1);
     const auto TRANSIENTREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection, TRANSIENTCOOKIE, NULL);
 
-    if (!TRANSIENTREPLY || xcb_get_property_value_length(TRANSIENTREPLY) == 0) {
+    if (!TRANSIENTREPLY) {
         Debug::log(WARN, "Transient check failed.");
+        return;
+    }
+
+    if (xcb_get_property_value_length(TRANSIENTREPLY) < sizeof(xcb_window_t)
+        || TRANSIENTREPLY->type != XCB_ATOM_WINDOW || TRANSIENTREPLY->format != 32) {
+        Debug::log(WARN, "Transient reply has an invalid format.");
+        free(TRANSIENTREPLY);
         return;
     }
 
