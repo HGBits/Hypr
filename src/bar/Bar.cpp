@@ -158,9 +158,9 @@ void CStatusBar::setupTray() {
 
     Debug::log(LOG, "Setting up tray!");
 
-    char atomName[strlen("_NET_SYSTEM_TRAY_S") + 11];
+    char atomName[32];
 
-    snprintf(atomName, strlen("_NET_SYSTEM_TRAY_S") + 11, "_NET_SYSTEM_TRAY_S%d", barScreen);
+    snprintf(atomName, sizeof(atomName), "_NET_SYSTEM_TRAY_S%d", barScreen);
 
     // init the atom
     const auto TRAYCOOKIE = xcb_intern_atom(g_pWindowManager->DisplayConnection, 0, strlen(atomName), atomName);
