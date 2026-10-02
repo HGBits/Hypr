@@ -1,6 +1,8 @@
 #include "windowManager.hpp"
 #include "./events/events.hpp"
 #include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 xcb_visualtype_t* CWindowManager::setupColors(const int& desiredDepth) {
     auto depthIter = xcb_screen_allowed_depths_iterator(Screen);
@@ -25,11 +27,24 @@ void CWindowManager::setupDepth() {
 }
 
 void CWindowManager::createAndOpenAllPipes() {
-    system("mkdir -p /tmp/hypr");
-    system("cat \" \" > /tmp/hypr/hyprbarin");
-    system("cat \" \" > /tmp/hypr/hyprbarout");
-    system("cat \" \" > /tmp/hypr/hyprbarind");
-    system("cat \" \" > /tmp/hypr/hyprbaroutd");
+    if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, m_iBarIPC.data()) < 0) {
+        Debug::log(CRIT, "Failed to create bar IPC socketpair!");
+        return;
+    }
+
+    setupBarIPCForProcess(false);
+}
+
+void CWindowManager::setupBarIPCForProcess(bool child) {
+    const auto OWN = child ? 1 : 0;
+    const auto PEER = child ? 0 : 1;
+
+    if (m_iBarIPC[PEER] >= 0)
+        close(m_iBarIPC[PEER]);
+
+    m_iBarIPC[PEER] = -1;
+    m_sIPCBarPipeIn.iPipeFD = m_iBarIPC[OWN];
+    m_sIPCBarPipeOut.iPipeFD = m_iBarIPC[OWN];
 }
 
 void CWindowManager::updateRootCursor() {
@@ -274,7 +289,7 @@ void CWindowManager::receiveEvent() {
 
         // Read from the bar
         if (!g_pWindowManager->statusBar)
-            IPCRecieveMessageM(m_sIPCBarPipeOut.szPipeName);
+            IPCRecieveMessageM(m_sIPCBarPipeOut.iPipeFD);
 
         const uint8_t TYPE = XCB_EVENT_RESPONSE_TYPE(ev);
         const auto EVENTCODE = ev->response_type & ~0x80;
@@ -2041,7 +2056,7 @@ void CWindowManager::updateBarInfo() {
         message.openWorkspaces.push_back(workspace.getID());
     }
 
-    IPCSendMessage(m_sIPCBarPipeIn.szPipeName, message);
+    IPCSendMessage(m_sIPCBarPipeIn.iPipeFD, message);
 
 
     // Also check if the bar should be made invisibel

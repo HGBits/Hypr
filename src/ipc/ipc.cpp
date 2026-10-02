@@ -5,28 +5,67 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cerrno>
+#include <sys/socket.h>
+#include <unistd.h>
 
-std::string readFromIPCChannel(std::string path) {
-    std::ifstream is;
-    is.open(path.c_str());
+std::string readFromIPCChannel(int fd) {
+    static std::string pending;
 
-    std::string resultString = std::string((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
+    if (fd < 0)
+        return "";
 
-    is.close();
-    return resultString;
-};
+    char buffer[4096];
 
-int writeToIPCChannel(const std::string path, std::string text) {
-    std::ofstream of;
-    of.open(path, std::ios::trunc);
+    while (true) {
+        const auto READ = recv(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+        if (READ > 0) {
+            pending.append(buffer, READ);
+            if (pending.find(IPC_END_OF_FILE) != std::string::npos)
+                break;
+            continue;
+        }
 
-    of << text;
+        if (READ == 0 || (READ < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+            pending.clear();
+            return "";
+        }
 
-    of.close();
+        break;
+    }
+
+    const auto EOFPOS = pending.find(IPC_END_OF_FILE);
+    if (EOFPOS == std::string::npos)
+        return "";
+
+    const auto END = EOFPOS + IPC_END_OF_FILE.length();
+    std::string message = pending.substr(0, END);
+    pending.erase(0, END);
+    return message;
+}
+
+int writeToIPCChannel(int fd, const std::string& text) {
+    if (fd < 0)
+        return -1;
+
+    size_t written = 0;
+    while (written < text.size()) {
+        const auto RET = send(fd, text.data() + written, text.size() - written, MSG_NOSIGNAL);
+        if (RET > 0) {
+            written += RET;
+            continue;
+        }
+
+        if (RET < 0 && errno == EINTR)
+            continue;
+
+        return -1;
+    }
+
     return 0;
 }
 
-void IPCSendMessage(const std::string path, SIPCMessageBarToMain smessage) {
+void IPCSendMessage(int fd, SIPCMessageBarToMain smessage) {
     if (!g_pWindowManager->statusBar) {
         Debug::log(ERR, "Tried to write as a bar from the main thread?!");
         return;
@@ -41,13 +80,13 @@ void IPCSendMessage(const std::string path, SIPCMessageBarToMain smessage) {
         // append the EOF
         message += IPC_END_OF_FILE;
 
-        writeToIPCChannel(path, message);
+        writeToIPCChannel(fd, message);
     } catch (...) {
         Debug::log(WARN, "Error in sending Message B!");
     }
 }
 
-void IPCSendMessage(const std::string path, SIPCMessageMainToBar smessage) {
+void IPCSendMessage(int fd, SIPCMessageMainToBar smessage) {
     if (g_pWindowManager->statusBar) {
         Debug::log(ERR, "Tried to write as main from the bar thread?!");
         return;
@@ -81,7 +120,7 @@ void IPCSendMessage(const std::string path, SIPCMessageMainToBar smessage) {
     }
 }
 
-void IPCRecieveMessageB(const std::string path) {
+void IPCRecieveMessageB(int fd) {
     // recieve message as bar
 
     if (!g_pWindowManager->statusBar) {
@@ -90,7 +129,7 @@ void IPCRecieveMessageB(const std::string path) {
     }
 
     try {
-        std::string message = readFromIPCChannel(path);
+        std::string message = readFromIPCChannel(fd);
 
         const auto EOFPOS = message.find(IPC_END_OF_FILE);
 
@@ -144,7 +183,7 @@ void IPCRecieveMessageB(const std::string path) {
     }
 }
 
-void IPCRecieveMessageM(const std::string path) {
+void IPCRecieveMessageM(int fd) {
     // recieve message as main
 
     if (g_pWindowManager->statusBar) {

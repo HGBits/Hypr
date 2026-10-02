@@ -1,8 +1,8 @@
 #pragma once
 #include "../defines.hpp"
 
-std::string   readFromIPCChannel(const std::string);
-int           writeToIPCChannel(const std::string, std::string);
+std::string   readFromIPCChannel(int);
+int           writeToIPCChannel(int, const std::string&);
 
 #define         IPC_END_OF_FILE (std::string)"HYPR_END_OF_FILE"
 #define         IPC_MESSAGE_SEPARATOR std::string("\t")
@@ -21,14 +21,13 @@ struct SIPCMessageBarToMain {
 };
 
 struct SIPCPipe {
-    std::string szPipeName = "";
-    uint64_t iPipeFD = 0;
+    int         iPipeFD = -1;
 };
 
-// /tmp/ is RAM so the speeds will be decent, if anyone wants to implement
-// actual pipes feel free.
+// IPC is implemented with an anonymous Unix-domain socketpair shared by the
+// parent and bar child processes.
 
-void         IPCSendMessage(const std::string, SIPCMessageMainToBar);
-void         IPCSendMessage(const std::string, SIPCMessageBarToMain);
-void         IPCRecieveMessageB(const std::string);
-void         IPCRecieveMessageM(const std::string);
+void         IPCSendMessage(int, SIPCMessageMainToBar);
+void         IPCSendMessage(int, SIPCMessageBarToMain);
+void         IPCRecieveMessageB(int);
+void         IPCRecieveMessageM(int);

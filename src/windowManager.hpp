@@ -7,6 +7,7 @@
 #include <thread>
 #include <xcb/xcb.h>
 #include <deque>
+#include <array>
 
 #include "KeybindManager.hpp"
 #include "utilities/Workspace.hpp"
@@ -55,9 +56,10 @@ public:
     int                         lastActiveWorkspaceID = 1;
     int                         activeWorkspaceID = 1;
 
-    // Not really pipes, but files. Oh well. Used for IPC.
-    SIPCPipe                    m_sIPCBarPipeIn = {ISDEBUG ? "/tmp/hypr/hyprbarind" : "/tmp/hypr/hyprbarin", 0};
-    SIPCPipe                    m_sIPCBarPipeOut = {ISDEBUG ? "/tmp/hypr/hyprbaroutd" : "/tmp/hypr/hyprbarout", 0};
+    // IPC endpoint shared between the parent and the bar child.
+    SIPCPipe                    m_sIPCBarPipeIn;
+    SIPCPipe                    m_sIPCBarPipeOut;
+    std::array<int, 2>          m_iBarIPC = {-1, -1};
     // This will be nullptr on the main thread, and will hold the pointer to the bar object on the bar thread.
     CStatusBar*                 statusBar = nullptr;
     Vector2D                    lastKnownBarPosition = {-1,-1};
@@ -128,6 +130,7 @@ public:
 
     void                        setupRandrMonitors();
     void                        createAndOpenAllPipes();
+    void                        setupBarIPCForProcess(bool child);
     void                        setupDepth();
     void                        setupColormapAndStuff();
 

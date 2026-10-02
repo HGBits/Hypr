@@ -13,12 +13,13 @@ bool isParentDead() {
 
 void parseEvent() {
     while(1) {
-        g_pWindowManager->recieveEvent();
+        g_pWindowManager->receiveEvent();
     }
 }
 
 int64_t barMainThread() {
-    // Main already created all the pipes
+    // Main already created the IPC socketpair
+    g_pWindowManager->setupBarIPCForProcess(true);
 
     Debug::log(LOG, "Child says Hello World!");
 
@@ -108,10 +109,10 @@ int64_t barMainThread() {
         ++lazyUpdateCounter;
 
         // Recieve the message and send our reply
-        IPCRecieveMessageB(g_pWindowManager->m_sIPCBarPipeIn.szPipeName);
+        IPCRecieveMessageB(g_pWindowManager->m_sIPCBarPipeIn.iPipeFD);
         SIPCMessageBarToMain message;
         message.windowID = STATUSBAR.getWindowID();
-        IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.szPipeName, message);
+        IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.iPipeFD, message);
         //
 
         // draw the bar
