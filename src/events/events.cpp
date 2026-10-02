@@ -297,7 +297,7 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
                 PWINDOWINARR->setDockAlign(DOCK_TOP);
 
                 // Check reserved
-                const auto STRUTREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection, xcb_get_property(g_pWindowManager->DisplayConnection, false, windowID, HYPRATOMS["_NET_WM_STRUT_PARTIAL"], XCB_GET_PROPERTY_TYPE_ANY, 0, (4294967295U)), NULL);
+                const auto STRUTREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection, xcb_get_property(g_pWindowManager->DisplayConnection, false, windowID, HYPRATOMS["_NET_WM_STRUT_PARTIAL"], XCB_GET_PROPERTY_TYPE_ANY, 0, 12), NULL);
 
                 if (!STRUTREPLY || STRUTREPLY->type != XCB_ATOM_CARDINAL || STRUTREPLY->format != 32 || xcb_get_property_value_length(STRUTREPLY) < 4 * sizeof(uint32_t)) {
                     Debug::log(ERR, "Couldn't get strut for dock.");
