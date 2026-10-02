@@ -38,7 +38,7 @@ std::string readFromIPCChannel(int fd) {
     if (EOFPOS == std::string::npos)
         return "";
 
-    const auto END = EOFPOS + IPC_END_OF_FILE.length();
+    const auto END = EOFPOS + strlen(IPC_END_OF_FILE);
     std::string message = pending.substr(0, END);
     pending.erase(0, END);
     return message;
@@ -114,7 +114,7 @@ void IPCSendMessage(int fd, SIPCMessageMainToBar smessage) {
         message += IPC_MESSAGE_SEPARATOR + IPC_END_OF_FILE;
 
         // Send
-        writeToIPCChannel(path, message);
+        writeToIPCChannel(fd, message);
     } catch (...) {
         Debug::log(WARN, "Error in sending Message M!");
     }
@@ -192,7 +192,7 @@ void IPCRecieveMessageM(int fd) {
     }
 
     try {
-        std::string message = readFromIPCChannel(path);
+        std::string message = readFromIPCChannel(fd);
 
         const auto EOFPOS = message.find(IPC_END_OF_FILE);
 
