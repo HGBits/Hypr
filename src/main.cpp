@@ -62,6 +62,7 @@ int main(int argc, char** argv) {
         }
 
         ATOM.second = reply->atom;
+        free(reply);
     }
 
     g_pWindowManager->setupManager();
