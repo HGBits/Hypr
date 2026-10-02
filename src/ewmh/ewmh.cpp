@@ -46,8 +46,7 @@ void EWMH::updateClientList() {
         if (w.getDrawable() > 0 && !w.getIsFloating())
             windowsList.push_back(w.getDrawable());
 
-    // hack
-    xcb_window_t* ArrWindowList = &windowsList[0];
+    const auto ArrWindowList = windowsList.empty() ? nullptr : windowsList.data();
 
     xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_CLIENT_LIST"], XCB_ATOM_WINDOW,
         32, windowsList.size(), ArrWindowList);
@@ -103,7 +102,7 @@ void EWMH::updateDesktops() {
             msglen += strlen(std::to_string(work.getID()).c_str()) + 1;
         }
 
-        char names[msglen];
+        std::vector<char> names(msglen);
         int curpos = 0;
         for (auto& work : workspacesVec) {
             for (int i = 0; i < strlen(std::to_string(work.getID()).c_str()) + 1; ++i) {
@@ -118,7 +117,7 @@ void EWMH::updateDesktops() {
         xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_DESKTOP_NAMES"], HYPRATOMS["UTF8_STRING"], 8, msglen, names);
     
         // Also update where the workspaces are so that bars and shit can read which monitor they belong to.
-        uint32_t workspaceCoords[ALLDESKTOPS * 2];
+        std::vector<uint32_t> workspaceCoords(ALLDESKTOPS * 2);
 
         int pos = 0;
         for (int i = 0; i < ALLDESKTOPS; ++i) {
