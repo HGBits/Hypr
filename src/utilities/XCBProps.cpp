@@ -7,9 +7,8 @@
 std::pair<std::string, std::string> getClassName(int64_t window) {
     PROP(class_cookie, XCB_ATOM_WM_CLASS, 128);
 
-    if (!class_cookiereply) {
+    if (!class_cookiereply)
         return std::make_pair<>("Error", "Error");
-    }
 
     if (class_cookiereply->type != XCB_ATOM_STRING || class_cookiereply->format != 8) {
         free(class_cookiereply);
@@ -17,31 +16,29 @@ std::pair<std::string, std::string> getClassName(int64_t window) {
     }
 
     const size_t PROPLEN = xcb_get_property_value_length(class_cookiereply);
-    char* NEWCLASS = (char*)xcb_get_property_value(class_cookiereply);
-    if (!NEWCLASS || PROPLEN == 0) {
+    const char* const NEWCLASS = (const char*)xcb_get_property_value(class_cookiereply);
+    if (!NEWCLASS || PROPLEN < 2) {
         free(class_cookiereply);
         return std::make_pair<>("Error", "Error");
     }
 
-    const size_t CLASSNAMEINDEX = strnlen(NEWCLASS, PROPLEN) + 1;
-
-    char* CLASSINSTANCE = strndup(NEWCLASS, PROPLEN);
-    char* CLASSNAME;
-    bool freeClassName = true;
-    if (CLASSNAMEINDEX < PROPLEN) {
-        CLASSNAME = strndup(NEWCLASS + CLASSNAMEINDEX, PROPLEN - CLASSNAMEINDEX);
-    } else {
-        CLASSNAME = nullptr;
-        freeClassName = false;
+    const size_t INSTANCE_LEN = strnlen(NEWCLASS, PROPLEN);
+    if (INSTANCE_LEN >= PROPLEN) {
+        free(class_cookiereply);
+        return std::make_pair<>("Error", "Error");
     }
 
-    std::string CLASSINST(CLASSINSTANCE);
-    std::string CLASSNAM = CLASSNAME ? CLASSNAME : "";
+    const size_t CLASSNAMEOFFSET = INSTANCE_LEN + 1;
+    const size_t CLASSNAME_LEN = strnlen(NEWCLASS + CLASSNAMEOFFSET, PROPLEN - CLASSNAMEOFFSET);
+    if (CLASSNAMEOFFSET + CLASSNAME_LEN >= PROPLEN) {
+        free(class_cookiereply);
+        return std::make_pair<>("Error", "Error");
+    }
+
+    std::string CLASSINST(NEWCLASS, INSTANCE_LEN);
+    std::string CLASSNAM(NEWCLASS + CLASSNAMEOFFSET, CLASSNAME_LEN);
 
     free(class_cookiereply);
-    free(CLASSINSTANCE);
-    if (freeClassName)
-        free(CLASSNAME);
 
     return std::make_pair<>(CLASSINST, CLASSNAM);
 }
