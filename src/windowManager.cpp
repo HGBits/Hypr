@@ -26,13 +26,14 @@ void CWindowManager::setupDepth() {
     VisualType = setupColors(Depth);
 }
 
-void CWindowManager::createAndOpenAllPipes() {
+bool CWindowManager::createAndOpenAllPipes() {
     if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, m_iBarIPC.data()) < 0) {
         Debug::log(CRIT, "Failed to create bar IPC socketpair!");
-        return;
+        return false;
     }
 
     setupBarIPCForProcess(false);
+    return true;
 }
 
 void CWindowManager::setupBarIPCForProcess(bool child) {
