@@ -16,7 +16,10 @@ int main(int argc, char** argv) {
     Debug::log(LOG, "Hypr debug log. Built on " + std::string(__DATE__) + " at " + std::string(__TIME__));
 
     // Create all pipes
-    g_pWindowManager->createAndOpenAllPipes();
+    if (!g_pWindowManager->createAndOpenAllPipes()) {
+        Debug::log(CRIT, "Failed to initialize bar IPC. Exiting.");
+        return 1;
+    }
 
     Debug::log(LOG, "Pipes done! Forking!");
 
