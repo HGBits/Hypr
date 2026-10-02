@@ -76,14 +76,18 @@ void wakeUpEvent(xcb_drawable_t window) {
 }
 
 bool xcbContainsAtom(xcb_get_property_reply_t* PROP, xcb_atom_t ATOM) {
-    if (PROP == NULL || xcb_get_property_value_length(PROP) == 0)
+    if (PROP == NULL || PROP->type != XCB_ATOM_ATOM || PROP->format != 32)
+        return false;
+
+    const auto LENGTH = xcb_get_property_value_length(PROP);
+    if (LENGTH < sizeof(xcb_atom_t) || LENGTH % sizeof(xcb_atom_t) != 0)
         return false;
 
     const auto ATOMS = (xcb_atom_t*)xcb_get_property_value(PROP);
     if (!ATOMS)
         return false;
 
-    for (int i = 0; i < xcb_get_property_value_length(PROP) / (PROP->format / 8); ++i)
+    for (size_t i = 0; i < LENGTH / sizeof(xcb_atom_t); ++i)
         if (ATOMS[i] == ATOM)
             return true;
 
