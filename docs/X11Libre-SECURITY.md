@@ -34,17 +34,65 @@ Compatibility should be validated at three levels:
 
 | Area | File(s) | Priority | Reason |
 |---|---|---:|---|
-| IPC transport | src/windowManager.cpp, src/windowManager.hpp, src/ipc/ipc.cpp | Critical | Predictable shared files in /tmp allowed local interference and symlink attacks |
+| IPC transport | src/windowManager.cpp, src/windowManager.hpp, src/ipc/ipc.cpp | Done | Replaced predictable /tmp IPC files with a process-local socketpair; runtime-validated |
 | XCB reply validation | src/utilities/XCBProps.cpp, src/ewmh/ewmh.cpp, src/windowManager.cpp | High | X11 properties are client-controlled input |
 | XCB error handling | src/main.cpp, src/windowManager.cpp, event handlers | High | Asynchronous X errors are otherwise silently ignored |
-| Unbounded property requests | src/ewmh/ewmh.cpp | High | UINT32_MAX is used as a property length |
-| Empty-container handling | src/ewmh/ewmh.cpp | High | &windowsList[0] is undefined for an empty vector |
-| VLA / size validation | src/ewmh/ewmh.cpp and other X11 paths | Medium | Runtime-sized stack allocations need explicit bounds |
+| Unbounded property requests | src/ewmh/ewmh.cpp, src/windowManager.cpp | In progress | Known oversized reads were reduced; remaining UINT32_MAX property requests need review |
+| Empty-container handling | src/ewmh/ewmh.cpp | Done | EWMH client-list update now handles an empty vector safely |
+| VLA / size validation | src/ewmh/ewmh.cpp and other X11 paths | In progress | Known EWMH VLAs were replaced; other runtime-sized X11 allocations still need review |
 | Build hardening | CMakeLists.txt | Medium | Current build forces /bin/g++ and lacks an explicit hardening policy |
 | Resource lifetime | XCB cursor/context and replies | Medium | Cleanup should be deterministic |
 | Xnamespace awareness | future integration tests | Medium | XLibre adds Xnamespace for client isolation |
 
 ## Security hardening
+## Hardening status
+
+The first security-hardening batch is complete and has been validated at runtime on the hardened branch. The batch covered the /tmp/hypr IPC replacement, several XCB property-validation paths, bounded EWMH property reads, empty-vector handling, VLA removal in EWMH updates, XCB connection-error ordering, tray atom lifetime, IPC initialization failure propagation, and related vector/allocation fixes.
+
+The rebuilt binary was installed as /usr/local/bin/Hypr and the X11 session test passed: Hypr started normally through LY, the built-in bar communicated correctly, and workspace/window updates continued to work.
+
+### Remaining work
+
+1. **Complete XCB reply/error audit**
+   - Audit all property readers and asynchronous XCB requests.
+   - Ensure replies are freed on every path.
+   - Ensure XCB error objects are handled and freed where applicable.
+   - Avoid dereferencing replies after errors or malformed type/format/length data.
+
+2. **Complete unbounded-property audit**
+   - Search remaining UINT32_MAX property-length requests.
+   - In particular, review _NET_WM_WINDOW_TYPE reads in src/windowManager.cpp.
+   - Replace unbounded reads with protocol-appropriate limits.
+
+3. **Harden WM_CLASS parsing**
+   - Validate the instance\\0class\\0 structure before deriving the class name.
+   - Handle allocation failure from duplicated strings.
+   - Reject truncated or unterminated property payloads.
+
+4. **Audit remaining X11 property readers**
+   - Apply type, format, length and pointer validation to paths not covered by the first batch.
+   - Pay particular attention to ICCCM size hints, protocols, _NET_WM_STATE, tray/XEmbed and other client-controlled properties.
+
+5. **IPC robustness**
+   - Review blocking send() behavior and whether a slow/full socket can stall the WM.
+   - Review the shared static receive buffer in readFromIPCChannel() and consider per-channel state if the architecture evolves.
+
+6. **Build hardening**
+   - Remove the hard-coded /bin/g++.
+   - Add an explicit modern C++ standard requirement.
+   - Add PIE/RELRO/NOW/stack-protector/fortify flags where supported.
+   - Keep sanitizer builds available for CI.
+
+7. **Resource-lifetime audit**
+   - Audit XCB cursor/context ownership and remaining reply lifetimes.
+   - Check cleanup paths during startup failure and shutdown.
+
+8. **Compatibility/security test coverage**
+   - Add regression tests for malformed property type/format/length combinations.
+   - Exercise oversized and truncated property payloads.
+   - Verify obsolete /tmp/hypr/hyprbar* endpoints are never created.
+   - Expand runtime coverage for missing optional X extensions and X server error paths.
+
 
 ### 1. Replace /tmp/hypr IPC
 
@@ -117,7 +165,7 @@ Audit all paths for:
 - errors checked before dereferencing replies;
 - asynchronous errors that can leave internal state inconsistent.
 
-xcb_disconnect() ends the connection lifetime. The current main.cpp checks xcb_connection_has_error() after disconnecting; that should be removed/reworked.
+xcb_disconnect() ends the connection lifetime. main.cpp now captures xcb_connection_has_error() before disconnecting. The broader asynchronous XCB error audit remains open.
 
 ### 5. Remove undefined behavior around empty collections
 
