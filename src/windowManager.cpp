@@ -2560,10 +2560,13 @@ bool CWindowManager::shouldBeManaged(const int& window) {
 
     if (WINDOWATTRS->override_redirect) {
         Debug::log(LOG, "Skipping: override redirect");
+        free(WINDOWATTRS);
         return false;
     }
 
     const auto GEOMETRY = xcb_get_geometry_reply(DisplayConnection, xcb_get_geometry(DisplayConnection, window), NULL);
+    free(WINDOWATTRS);
+
     if (!GEOMETRY) {
         Debug::log(LOG, "Skipping: No geometry");
         return false;
@@ -2571,6 +2574,7 @@ bool CWindowManager::shouldBeManaged(const int& window) {
 
     Debug::log(LOG, "shouldBeManaged passed!");
 
+    free(GEOMETRY);
     return true;
 }
 
