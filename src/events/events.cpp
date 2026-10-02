@@ -276,10 +276,10 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
     //
     // Dock Checks
     //
-    const auto wm_type_cookie = xcb_get_property(g_pWindowManager->DisplayConnection, false, windowID, HYPRATOMS["_NET_WM_WINDOW_TYPE"], XCB_GET_PROPERTY_TYPE_ANY, 0, (4294967295U));
+    const auto wm_type_cookie = xcb_get_property(g_pWindowManager->DisplayConnection, false, windowID, HYPRATOMS["_NET_WM_WINDOW_TYPE"], XCB_GET_PROPERTY_TYPE_ANY, 0, 32);
     const auto wm_type_cookiereply = xcb_get_property_reply(g_pWindowManager->DisplayConnection, wm_type_cookie, NULL);
     xcb_atom_t TYPEATOM = NULL;
-    if (wm_type_cookiereply == NULL || xcb_get_property_value_length(wm_type_cookiereply) < 1) {
+    if (wm_type_cookiereply == NULL || wm_type_cookiereply->type != XCB_ATOM_ATOM || wm_type_cookiereply->format != 32 || xcb_get_property_value_length(wm_type_cookiereply) < sizeof(xcb_atom_t)) {
         Debug::log(LOG, "No preferred type found. (RemapFloatingWindow)");
     } else {
         const auto ATOMS = (xcb_atom_t*)xcb_get_property_value(wm_type_cookiereply);
@@ -299,7 +299,7 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
                 // Check reserved
                 const auto STRUTREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection, xcb_get_property(g_pWindowManager->DisplayConnection, false, windowID, HYPRATOMS["_NET_WM_STRUT_PARTIAL"], XCB_GET_PROPERTY_TYPE_ANY, 0, (4294967295U)), NULL);
 
-                if (!STRUTREPLY || xcb_get_property_value_length(STRUTREPLY) == 0) {
+                if (!STRUTREPLY || STRUTREPLY->type != XCB_ATOM_CARDINAL || STRUTREPLY->format != 32 || xcb_get_property_value_length(STRUTREPLY) < 4 * sizeof(uint32_t)) {
                     Debug::log(ERR, "Couldn't get strut for dock.");
                 } else {
                     const uint32_t* STRUT = (uint32_t*)xcb_get_property_value(STRUTREPLY);
@@ -892,10 +892,12 @@ void Events::eventClientMessage(xcb_generic_event_t* event) {
             xcb_generic_error_t* err;
             const auto XEMBEDREPLY  = xcb_get_property_reply(g_pWindowManager->DisplayConnection, XEMBEDCOOKIE, &err);
 
-            if (!XEMBEDREPLY || err || XEMBEDREPLY->length == 0) {
+            if (!XEMBEDREPLY || err || XEMBEDREPLY->type != XCB_ATOM_CARDINAL || XEMBEDREPLY->format != 32 || xcb_get_property_value_length(XEMBEDREPLY) < 2 * sizeof(uint32_t)) {
                 Debug::log(ERR, "Tray dock opcode recieved with no XEmbed?");
-                if (err)
+                if (err) {
                     Debug::log(ERR, "Error code: " + std::to_string(err->error_code));
+                    free(err);
+                }
                 free(XEMBEDREPLY);
                 return;
             }
