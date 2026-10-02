@@ -1,6 +1,7 @@
 #include <inttypes.h>
 
 #include <thread>
+#include <tuple>
 
 #include "../windowManager.hpp"
 
@@ -32,7 +33,7 @@ namespace Events {
     inline bool     nextWindowCentered = false;
 
     // Fix focus on open
-    inline std::deque<uint64_t> ignoredEvents;
+    inline std::deque<std::tuple<uint64_t, uint8_t>> ignoredEvents;
 
     // Fix spammed RandR events
     inline std::chrono::high_resolution_clock::time_point lastRandREvent = std::chrono::high_resolution_clock::now();

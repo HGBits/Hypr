@@ -635,9 +635,6 @@ CWindow* Events::remapWindow(int windowID, bool wasfloating, int forcemonitor) {
 void Events::eventMapWindow(xcb_generic_event_t* event) {
     const auto E = reinterpret_cast<xcb_map_request_event_t*>(event);
 
-    // Ignore sequence
-    ignoredEvents.push_back(E->sequence);
-
     // let bar check if it wasnt a tray item
     if (g_pWindowManager->statusBar)
         g_pWindowManager->statusBar->ensureTrayClientHidden(E->window, false);
@@ -645,7 +642,10 @@ void Events::eventMapWindow(xcb_generic_event_t* event) {
     RETURNIFBAR;
 
     // Map the window
-    xcb_map_window(g_pWindowManager->DisplayConnection, E->window);
+    const auto COOKIE = xcb_map_window(g_pWindowManager->DisplayConnection, E->window);
+
+    // Ignore only the corresponding MAP_REQUEST event. Multiple X11 events can share a sequence.
+    ignoredEvents.emplace_back(COOKIE.sequence, XCB_MAP_REQUEST);
 
     // We check if the window is not on our tile-blacklist and if it is, we have a special treatment procedure for it.
     // this func also sets some stuff

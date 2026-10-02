@@ -215,7 +215,7 @@ bool CWindowManager::handleEvent() {
     xcb_flush(DisplayConnection);
     
     // recieve the event. Blocks.
-    recieveEvent();
+    receiveEvent();
 
     // refresh and apply the parameters of all dirty windows.
     refreshDirtyWindows();
@@ -251,7 +251,7 @@ bool CWindowManager::handleEvent() {
     return true;
 }
 
-void CWindowManager::recieveEvent() {
+void CWindowManager::receiveEvent() {
     const auto ev = xcb_wait_for_event(DisplayConnection);
     if (ev != NULL) {
         while (animationUtilBusy) {
@@ -259,8 +259,8 @@ void CWindowManager::recieveEvent() {
         }
 
         for (auto& e : Events::ignoredEvents) {
-            if (e == ev->sequence) {
-                Debug::log(LOG, "Ignoring event type " + std::to_string(ev->response_type & ~0x80) + ".");
+            const auto [sequence, responseType] = e;
+            if (sequence == ev->sequence && (responseType == 0 || responseType == ev->response_type)) {
                 free(ev);
                 return;
             }
@@ -361,7 +361,7 @@ void CWindowManager::processBarHiding() {
 
         if (WORK->getHasFullscreenWindow() && !w.getDockHidden()) {
             const auto COOKIE = xcb_unmap_window(DisplayConnection, w.getDrawable());
-            Events::ignoredEvents.push_back(COOKIE.sequence);
+            Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
             w.setDockHidden(true);
         }
             
@@ -480,7 +480,7 @@ void CWindowManager::refreshDirtyWindows() {
                     const auto COOKIE = xcb_configure_window(DisplayConnection, window.getDrawable(), XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, Values);
                     window.setLastUpdatePosition(Vector2D(Values[0], Values[1]));
 
-                    Events::ignoredEvents.push_back(COOKIE.sequence);
+                    Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
                 }
             } else {
                 // Update the position because the border makes the window jump
@@ -491,7 +491,7 @@ void CWindowManager::refreshDirtyWindows() {
                     const auto COOKIE = xcb_configure_window(DisplayConnection, window.getDrawable(), XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, Values);
                     window.setLastUpdatePosition(Vector2D(Values[0], Values[1]));
 
-                    Events::ignoredEvents.push_back(COOKIE.sequence);
+                    Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
                 }
 
                 Values[0] = (int)ConfigManager::getInt("border_size");
@@ -509,7 +509,7 @@ void CWindowManager::refreshDirtyWindows() {
                     const auto COOKIE = xcb_configure_window(DisplayConnection, window.getDrawable(), XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, Values);
                     window.setLastUpdateSize(Vector2D(Values[0], Values[1]));
 
-                    Events::ignoredEvents.push_back(COOKIE.sequence);
+                    Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
                 }
                 window.setFirstAnimFrame(true);
             }
@@ -524,7 +524,7 @@ void CWindowManager::refreshDirtyWindows() {
                         const auto COOKIE = xcb_configure_window(DisplayConnection, window.getDrawable(), XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, Values);
                         window.setLastUpdateSize(Vector2D(Values[0], Values[1]));
 
-                        Events::ignoredEvents.push_back(COOKIE.sequence);
+                        Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
                     }
                 }
             }
@@ -2086,7 +2086,7 @@ void CWindowManager::setAllFloatingWindowsTop() {
 void CWindowManager::setAWindowTop(xcb_window_t window) {
     Values[0] = XCB_STACK_MODE_ABOVE;
     const auto COOKIE = xcb_configure_window(g_pWindowManager->DisplayConnection, window, XCB_CONFIG_WINDOW_STACK_MODE, Values);
-    Events::ignoredEvents.push_back(COOKIE.sequence);
+    Events::ignoredEvents.emplace_back(COOKIE.sequence, 0);
 
     // set the bar topper jic
     Values[0] = XCB_STACK_MODE_ABOVE;
