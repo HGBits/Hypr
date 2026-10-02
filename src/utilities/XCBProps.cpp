@@ -66,12 +66,7 @@ std::string getRoleName(int64_t window) {
     } else {
         // get the role
 
-        char* role;
-        asprintf(&role, "%.*s", xcb_get_property_value_length(role_cookiereply), (char*)xcb_get_property_value(role_cookiereply));
-
-        returns = role;
-
-        free(role);
+        returns.assign((const char*)ROLEVALUE, ROLELEN);
     }
 
     free(role_cookiereply);
