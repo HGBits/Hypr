@@ -340,7 +340,7 @@ void CStatusBar::setup(int MonitorID) {
     // send the message IMMEDIATELY so that the main thread has time to update our WID.
     SIPCMessageBarToMain message;
     message.windowID = m_iWindowID;
-    IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.szPipeName, message);
+    IPCSendMessage(g_pWindowManager->m_sIPCBarPipeOut.iPipeFD, message);
 
     values[0] = ConfigManager::getInt("bar:col.bg");
     values[1] = ConfigManager::getInt("bar:col.bg");
