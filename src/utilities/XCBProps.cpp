@@ -89,9 +89,7 @@ std::string getWindowName(uint64_t window) {
         return "";
     }
 
-    char* name = strndup((const char*)value, len);
-    std::string stringname(name);
-    free(name);
+    std::string stringname((const char*)value, len);
 
     free(name_cookiereply);
 
