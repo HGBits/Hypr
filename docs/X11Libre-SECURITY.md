@@ -58,6 +58,7 @@ The rebuilt binary was installed as /usr/local/bin/Hypr and the X11 session test
    - Ensure replies are freed on every path.
    - Ensure XCB error objects are handled and freed where applicable.
    - Avoid dereferencing replies after errors or malformed type/format/length data.
+   - **Progress:** `WM_TRANSIENT_FOR` now validates type/format/length and frees invalid replies before returning.
 
 2. **Complete unbounded-property audit**
    - Search remaining UINT32_MAX property-length requests.
