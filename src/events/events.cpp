@@ -256,6 +256,7 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
     if (GEOMETRY) {
         PWINDOWINARR->setDefaultPosition(g_pWindowManager->monitors[CURRENTSCREEN].vecPosition);
         PWINDOWINARR->setDefaultSize(Vector2D(GEOMETRY->width, GEOMETRY->height));
+        free(GEOMETRY);
     } else {
         Debug::log(ERR, "Geometry failed in remap.");
 
@@ -515,6 +516,7 @@ CWindow* Events::remapWindow(int windowID, bool wasfloating, int forcemonitor) {
     if (GEOMETRY) {
         PWINDOWINARR->setDefaultPosition(Vector2D(GEOMETRY->x, GEOMETRY->y));
         PWINDOWINARR->setDefaultSize(Vector2D(GEOMETRY->width, GEOMETRY->height));
+        free(GEOMETRY);
     } else {
         Debug::log(ERR, "Geometry failed in remap.");
 
