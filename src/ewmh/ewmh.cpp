@@ -114,7 +114,7 @@ void EWMH::updateDesktops() {
             }
         }
 
-        xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_DESKTOP_NAMES"], HYPRATOMS["UTF8_STRING"], 8, msglen, names);
+        xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_DESKTOP_NAMES"], HYPRATOMS["UTF8_STRING"], 8, msglen, names.data());
     
         // Also update where the workspaces are so that bars and shit can read which monitor they belong to.
         std::vector<uint32_t> workspaceCoords(ALLDESKTOPS * 2);
@@ -125,7 +125,7 @@ void EWMH::updateDesktops() {
             workspaceCoords[pos++] = g_pWindowManager->monitors[g_pWindowManager->workspaces[i].getMonitor()].vecPosition.y;
         }
 
-        xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_DESKTOP_VIEWPORT"], XCB_ATOM_CARDINAL, 32, pos, &workspaceCoords);
+        xcb_change_property(g_pWindowManager->DisplayConnection, XCB_PROP_MODE_REPLACE, g_pWindowManager->Screen->root, HYPRATOMS["_NET_DESKTOP_VIEWPORT"], XCB_ATOM_CARDINAL, 32, pos, workspaceCoords.data());
     }
 }
 
@@ -160,7 +160,7 @@ void EWMH::checkTransient(xcb_window_t window) {
         return;
 
     // Check if it's a transient
-    const auto TRANSIENTCOOKIE = xcb_get_property(g_pWindowManager->DisplayConnection, false, window, 68 /* TRANSIENT_FOR */, XCB_GET_PROPERTY_TYPE_ANY, 0, UINT32_MAX);
+    const auto TRANSIENTCOOKIE = xcb_get_property(g_pWindowManager->DisplayConnection, false, window, 68 /* TRANSIENT_FOR */, XCB_GET_PROPERTY_TYPE_ANY, 0, 1);
     const auto TRANSIENTREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection, TRANSIENTCOOKIE, NULL);
 
     if (!TRANSIENTREPLY || xcb_get_property_value_length(TRANSIENTREPLY) == 0) {
