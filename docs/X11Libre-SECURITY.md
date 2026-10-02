@@ -34,7 +34,7 @@ Compatibility should be validated at three levels:
 
 | Area | File(s) | Priority | Reason |
 |---|---|---:|---|
-| IPC files in /tmp | src/windowManager.cpp, src/windowManager.hpp, src/ipc/ipc.cpp | Critical | Predictable shared paths and shell-based creation permit local interference/symlink attacks |
+| IPC transport | src/windowManager.cpp, src/windowManager.hpp, src/ipc/ipc.cpp | Critical | Predictable shared files in /tmp allowed local interference and symlink attacks |
 | XCB reply validation | src/utilities/XCBProps.cpp, src/ewmh/ewmh.cpp, src/windowManager.cpp | High | X11 properties are client-controlled input |
 | XCB error handling | src/main.cpp, src/windowManager.cpp, event handlers | High | Asynchronous X errors are otherwise silently ignored |
 | Unbounded property requests | src/ewmh/ewmh.cpp | High | UINT32_MAX is used as a property length |
@@ -48,21 +48,34 @@ Compatibility should be validated at three levels:
 
 ### 1. Replace /tmp/hypr IPC
 
-Current code creates /tmp/hypr/hyprbarin, /tmp/hypr/hyprbarout, /tmp/hypr/hyprbarind and /tmp/hypr/hyprbaroutd through system().
+The original IPC implementation created predictable regular files in /tmp/hypr:
+- /tmp/hypr/hyprbarin
+- /tmp/hypr/hyprbarout
+- /tmp/hypr/hyprbarind
+- /tmp/hypr/hyprbaroutd
 
-This is the highest-priority local security issue.
+Those files were created through system() and then used as the transport between the Hypr parent process and its built-in bar child. Because the paths were predictable and shared through /tmp, another local process could interfere with the endpoints or exploit filesystem semantics such as symlink replacement.
 
-The replacement should:
-- use XDG_RUNTIME_DIR when available;
-- create a private Hypr runtime directory with restrictive permissions;
-- avoid system() completely;
-- use direct filesystem syscalls;
-- use O_NOFOLLOW where applicable;
-- verify ownership and file type before opening existing paths;
-- use predictable names only inside the private runtime directory;
-- fail closed if the runtime directory cannot be secured.
+The hardening change replaces those file-based endpoints with an anonymous Unix-domain socketpair:
+- socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, ...)
+- one endpoint remains in the Hypr parent;
+- the other endpoint remains in the bar child after fork();
+- the single full-duplex stream carries both Hypr-to-bar and bar-to-Hypr messages;
+- no IPC pathname is created in /tmp;
+- no shell command or system() call is required to create the transport.
 
-The IPC protocol should remain unchanged initially.
+The existing IPC message format is retained. SOCK_STREAM does not preserve message boundaries, so HYPR_END_OF_FILE remains the application-level message terminator and the receiver buffers partial reads until a complete message is available.
+
+The transport is established before fork(), and each process closes the peer endpoint it does not own. SOCK_CLOEXEC also prevents accidental inheritance across later exec operations.
+
+Runtime validation on the hardened branch confirmed:
+- Hypr starts normally from the LY X11 session;
+- the built-in bar communicates normally;
+- workspace/window updates continue to work;
+- startup remains fast;
+- the old hyprbar* files are not required for IPC.
+
+This replaces the previous /tmp-based IPC threat model rather than moving the same named files into another directory.
 
 ### 2. Treat X11 properties as hostile input
 
@@ -177,8 +190,8 @@ Security tests should include:
 - oversized property lengths;
 - invalid string payloads;
 - repeated RandR notifications;
-- IPC path replacement/symlink attempts;
-- pre-existing /tmp/hypr directory/file attacks.
+- IPC endpoint interference attempts;
+- verification that the obsolete /tmp/hypr/hyprbar* endpoints are not created.
 
 ## Acceptance criteria
 
@@ -187,7 +200,8 @@ Hypr is considered XLibre-compatible when:
 - it runs on XLibre using the standard XCB stack;
 - no XLibre-specific compatibility shim is required for normal X11/EWMH/ICCCM/RandR operation;
 - malformed X11 client properties do not crash or corrupt Hypr;
-- IPC paths cannot be hijacked by another local process;
+- IPC endpoints cannot be hijacked through predictable filesystem paths;
+- the Hypr/bar IPC transport uses process-local socketpair endpoints rather than named /tmp files;
 - XCB errors are handled deterministically;
 - CI exercises both XLibre and X.Org server implementations.
 
