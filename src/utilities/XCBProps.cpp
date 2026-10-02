@@ -11,8 +11,18 @@ std::pair<std::string, std::string> getClassName(int64_t window) {
         return std::make_pair<>("Error", "Error");
     }
 
+    if (class_cookiereply->type != XCB_ATOM_STRING || class_cookiereply->format != 8) {
+        free(class_cookiereply);
+        return std::make_pair<>("Error", "Error");
+    }
+
     const size_t PROPLEN = xcb_get_property_value_length(class_cookiereply);
     char* NEWCLASS = (char*)xcb_get_property_value(class_cookiereply);
+    if (!NEWCLASS || PROPLEN == 0) {
+        free(class_cookiereply);
+        return std::make_pair<>("Error", "Error");
+    }
+
     const size_t CLASSNAMEINDEX = strnlen(NEWCLASS, PROPLEN) + 1;
 
     char* CLASSINSTANCE = strndup(NEWCLASS, PROPLEN);
@@ -42,6 +52,11 @@ std::string getRoleName(int64_t window) {
     if (!role_cookiereply)
         return "Error";
 
+    if (role_cookiereply->format != 8 || role_cookiereply->type != XCB_ATOM_STRING) {
+        free(role_cookiereply);
+        return "Error";
+    }
+
     std::string returns = "";
 
     if (role_cookiereply == NULL || xcb_get_property_value_length(role_cookiereply)) {
@@ -68,8 +83,19 @@ std::string getWindowName(uint64_t window) {
     if (!name_cookiereply)
         return "Error";
 
+    if (name_cookiereply->format != 8 || name_cookiereply->type != HYPRATOMS["UTF8_STRING"]) {
+        free(name_cookiereply);
+        return "Error";
+    }
+
     const int len = xcb_get_property_value_length(name_cookiereply);
-    char* name = strndup((const char*)xcb_get_property_value(name_cookiereply), len);
+    const auto value = xcb_get_property_value(name_cookiereply);
+    if (!value || len <= 0) {
+        free(name_cookiereply);
+        return "";
+    }
+
+    char* name = strndup((const char*)value, len);
     std::string stringname(name);
     free(name);
 
@@ -98,9 +124,21 @@ void removeAtom(const int& window, xcb_atom_t prop, xcb_atom_t atom) {
         return;
     }
 
+    if (REPLY->type != XCB_ATOM_ATOM || REPLY->format != 32 || REPLY->length == 0) {
+        free(REPLY);
+        xcb_ungrab_server(DisplayConnection);
+        return;
+    }
+
+    const int current_size = xcb_get_property_value_length(REPLY) / sizeof(xcb_atom_t);
+    if (current_size <= 0 || current_size > 4096) {
+        free(REPLY);
+        xcb_ungrab_server(DisplayConnection);
+        return;
+    }
+
     int valuesnum = 0;
-    const int current_size = xcb_get_property_value_length(REPLY) / (REPLY->format / 8);
-    xcb_atom_t values[current_size];
+    std::vector<xcb_atom_t> values(current_size);
     for (int i = 0; i < current_size; i++) {
         if (atomsList[i] != atom)
             values[valuesnum++] = atomsList[i];
