@@ -38,7 +38,7 @@ std::string readFromIPCChannel(int fd) {
     if (EOFPOS == std::string::npos)
         return "";
 
-    const auto END = EOFPOS + IPC_END_OF_FILE.length();
+    const auto END = EOFPOS + std::string(IPC_END_OF_FILE).length();
     std::string message = pending.substr(0, END);
     pending.erase(0, END);
     return message;
