@@ -8,39 +8,42 @@
 #include <cerrno>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <unordered_map>
+#include <poll.h>
 
 std::string readFromIPCChannel(int fd) {
-    static std::string pending;
+    static std::unordered_map<int, std::string> pending;
 
     if (fd < 0)
         return "";
 
+    auto& bufferPending = pending[fd];
     char buffer[4096];
 
     while (true) {
         const auto READ = recv(fd, buffer, sizeof(buffer), MSG_DONTWAIT);
         if (READ > 0) {
-            pending.append(buffer, READ);
-            if (pending.find(IPC_END_OF_FILE) != std::string::npos)
+            bufferPending.append(buffer, READ);
+            if (bufferPending.find(IPC_END_OF_FILE) != std::string::npos)
                 break;
             continue;
         }
 
         if (READ == 0 || (READ < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
-            pending.clear();
+            pending.erase(fd);
             return "";
         }
 
         break;
     }
 
-    const auto EOFPOS = pending.find(IPC_END_OF_FILE);
+    const auto EOFPOS = bufferPending.find(IPC_END_OF_FILE);
     if (EOFPOS == std::string::npos)
         return "";
 
     const auto END = EOFPOS + std::string(IPC_END_OF_FILE).length();
-    std::string message = pending.substr(0, END);
-    pending.erase(0, END);
+    std::string message = bufferPending.substr(0, END);
+    bufferPending.erase(0, END);
     return message;
 }
 
@@ -50,7 +53,7 @@ int writeToIPCChannel(int fd, const std::string& text) {
 
     size_t written = 0;
     while (written < text.size()) {
-        const auto RET = send(fd, text.data() + written, text.size() - written, MSG_NOSIGNAL);
+        const auto RET = send(fd, text.data() + written, text.size() - written, MSG_NOSIGNAL | MSG_DONTWAIT);
         if (RET > 0) {
             written += RET;
             continue;
@@ -58,6 +61,15 @@ int writeToIPCChannel(int fd, const std::string& text) {
 
         if (RET < 0 && errno == EINTR)
             continue;
+
+        if (RET < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            pollfd POLLFD = {.fd = fd, .events = POLLOUT, .revents = 0};
+            const auto POLLRET = poll(&POLLFD, 1, 1000);
+            if (POLLRET > 0 && (POLLFD.revents & POLLOUT))
+                continue;
+
+            return -1;
+        }
 
         return -1;
     }
