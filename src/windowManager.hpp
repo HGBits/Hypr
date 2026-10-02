@@ -129,7 +129,7 @@ public:
     void                        getICCCMWMProtocols(CWindow*);
 
     void                        setupRandrMonitors();
-    void                        createAndOpenAllPipes();
+    bool                        createAndOpenAllPipes();
     void                        setupBarIPCForProcess(bool child);
     void                        setupDepth();
     void                        setupColormapAndStuff();
