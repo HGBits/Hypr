@@ -60,6 +60,8 @@ The rebuilt binary was installed as /usr/local/bin/Hypr and the X11 session test
    - Avoid dereferencing replies after errors or malformed type/format/length data.
    - **Progress:** `WM_TRANSIENT_FOR` now validates type/format/length and frees invalid replies before returning.
    - **Progress:** `xcbContainsAtom()` now rejects non-ATOM/non-32-bit replies and malformed byte lengths before iterating.
+   - **Progress:** `shouldBeManaged()` now releases both window-attributes and geometry replies on all paths.
+   - **Progress:** the two geometry replies used during window remapping are now released after their final use.
 
 2. **Complete unbounded-property audit**
    - Search remaining UINT32_MAX property-length requests.
