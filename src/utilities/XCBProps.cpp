@@ -59,7 +59,9 @@ std::string getRoleName(int64_t window) {
 
     std::string returns = "";
 
-    if (role_cookiereply == NULL || xcb_get_property_value_length(role_cookiereply)) {
+    const auto ROLELEN = xcb_get_property_value_length(role_cookiereply);
+    const auto ROLEVALUE = xcb_get_property_value(role_cookiereply);
+    if (!ROLEVALUE || ROLELEN == 0) {
         Debug::log(ERR, "Role reply was invalid!");
     } else {
         // get the role
